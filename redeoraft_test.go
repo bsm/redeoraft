@@ -48,7 +48,7 @@ var _ = Describe("RedeoRaft", func() {
 			s, err := readKey(cn, "key")
 			Expect(err).NotTo(HaveOccurred())
 			return s
-		}, "20s", "1s").Should(Equal(value))
+		}, "30s", "1s").Should(Equal(value))
 	}
 
 	It("should ping", func() {
@@ -188,7 +188,7 @@ var _ = Describe("RedeoRaft", func() {
 			s, err := readKey(cn2, "key")
 			Expect(err).NotTo(HaveOccurred())
 			return s
-		}, "20s").Should(Equal("v1"))
+		}, "10s").Should(Equal("v1"))
 	})
 
 	It("should propagate to all followers", func() {
