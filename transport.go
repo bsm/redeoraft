@@ -133,9 +133,9 @@ func (t *Transport) SetHeartbeatHandler(fn func(rpc raft.RPC)) {
 // AppendEntriesPipeline returns an interface that can be used to pipeline
 // AppendEntries requests.
 func (t *Transport) AppendEntriesPipeline(target raft.ServerAddress) (raft.AppendPipeline, error) {
-	// if 1 == 1 {
-	// 	return nil, raft.ErrPipelineReplicationNotSupported
-	// }
+	if 1 == 1 {
+		return nil, raft.ErrPipelineReplicationNotSupported
+	}
 	if t.isClosed() {
 		return nil, raft.ErrTransportShutdown
 	}
