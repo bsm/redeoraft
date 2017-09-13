@@ -19,18 +19,13 @@ var _ = Describe("RedeoRaft", func() {
 			return "", err
 		}
 
-		typ, err := cn.PeekType()
+		res, err := readResponse(cn)
 		if err != nil {
 			return "", err
+		} else if str, ok := res.(string); ok {
+			return str, nil
 		}
-
-		switch typ {
-		case resp.TypeBulk:
-			return cn.ReadBulkString()
-		case resp.TypeNil:
-			return "<nil>", cn.ReadNil()
-		}
-		return "", fmt.Errorf("expected bulk or nil, but got %d", typ)
+		return "", fmt.Errorf("expected bulk or nil")
 	}
 
 	var expectFollowerKV = func(p *peer, key, value string) {
@@ -44,108 +39,93 @@ var _ = Describe("RedeoRaft", func() {
 		Expect(err).NotTo(HaveOccurred())
 		defer p.pool.Put(cn)
 
-		Eventually(func() string {
-			s, err := readKey(cn, "key")
-			Expect(err).NotTo(HaveOccurred())
-			return s
+		Eventually(func() (string, error) {
+			return readKey(cn, "key")
 		}, "30s", "1s").Should(Equal(value))
 	}
 
 	It("should ping", func() {
 		peer, _ := testScenario.Leader()
 		cn, err := peer.pool.Get()
+		Expect(err).NotTo(HaveOccurred())
 		defer peer.pool.Put(cn)
 
 		cn.WriteCmd("PING")
 		Expect(cn.Flush()).To(Succeed())
-
-		str, err := cn.ReadBulkString()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(str).To(Equal("PONG"))
+		Expect(readResponse(cn)).To(Equal("PONG"))
 	})
 
 	It("should query RAFT leader", func() {
 		peer, addr := testScenario.Leader()
 		cn, err := peer.pool.Get()
+		Expect(err).NotTo(HaveOccurred())
 		defer peer.pool.Put(cn)
 
 		cn.WriteCmd("RAFTLEADER")
 		Expect(cn.Flush()).To(Succeed())
-
-		str, err := cn.ReadBulkString()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(str).To(Equal(addr.String()))
+		Expect(readResponse(cn)).To(Equal(addr.String()))
 	})
 
 	It("should query RAFT state", func() {
 		peer, _ := testScenario.Leader()
 		cn, err := peer.pool.Get()
+		Expect(err).NotTo(HaveOccurred())
 		defer peer.pool.Put(cn)
 
 		cn.WriteCmd("RAFTSTATE")
 		Expect(cn.Flush()).To(Succeed())
-
-		str, err := cn.ReadBulkString()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(str).To(Equal("leader"))
+		Expect(readResponse(cn)).To(Equal("leader"))
 	})
 
 	It("should query RAFT stats", func() {
 		peer, _ := testScenario.Leader()
 		cn, err := peer.pool.Get()
+		Expect(err).NotTo(HaveOccurred())
 		defer peer.pool.Put(cn)
 
 		cn.WriteCmd("RAFTSTATS")
 		Expect(cn.Flush()).To(Succeed())
-
-		n, err := cn.ReadArrayLen()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(n).To(Equal(34))
-
-		stats := make(map[string]string)
-		for i := 0; i < n; i += 2 {
-			key, err := cn.ReadBulkString()
-			Expect(err).NotTo(HaveOccurred())
-			val, err := cn.ReadBulkString()
-			Expect(err).NotTo(HaveOccurred())
-
-			stats[key] = val
-		}
-		Expect(stats).To(HaveLen(17))
-		Expect(stats).To(HaveKeyWithValue("num_peers", "4"))
-		Expect(stats).To(HaveKeyWithValue("protocol_version", "3"))
-		Expect(stats).To(HaveKeyWithValue("state", "leader"))
+		Expect(readResponse(cn)).To(Equal([]string{
+			"applied_index", "2",
+			"commit_index", "2",
+			"fsm_pending", "0",
+			"last_contact", "0",
+			"last_log_index", "2",
+			"last_log_term", "2",
+			"last_snapshot_index", "0",
+			"last_snapshot_term", "0",
+			"latest_configuration_index", "1",
+			"num_peers", "4",
+			"protocol_version", "3",
+			"protocol_version_max", "3",
+			"protocol_version_min", "0",
+			"snapshot_version_max", "1",
+			"snapshot_version_min", "0",
+			"state", "leader",
+			"term", "2",
+		}))
 	})
 
 	It("should query RAFT peers", func() {
 		peer, _ := testScenario.Leader()
 		cn, err := peer.pool.Get()
+		Expect(err).NotTo(HaveOccurred())
 		defer peer.pool.Put(cn)
 
 		cn.WriteCmd("RAFTPEERS")
 		Expect(cn.Flush()).To(Succeed())
+		Expect(cn.ReadArrayLen()).To(Equal(5))
 
-		n, err := cn.ReadArrayLen()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(n).To(Equal(5))
-
-		for i := 0; i < n; i++ {
-			m, err := cn.ReadArrayLen()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(m).To(Equal(3))
-
-			id, err := cn.ReadBulkString()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(id).To(MatchRegexp(`N[1-5]`))
-
-			addr, err := cn.ReadBulkString()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(addr).To(MatchRegexp(`127.0.0.1:\d+`))
-
-			suf, err := cn.ReadBulkString()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(suf).To(Equal("voter"))
+		exp := make([][]string, 5)
+		for i, p := range testScenario.peers {
+			exp[i] = []string{
+				"id", p.ID(),
+				"host", "127.0.0.1",
+				"port", p.Port(),
+				"suffrage", "voter",
+			}
 		}
+		Expect(readResponseSlice(5, cn)).To(ConsistOf(exp))
 	})
 
 	It("should accept and propagate writes", func() {
@@ -169,25 +149,17 @@ var _ = Describe("RedeoRaft", func() {
 		Expect(cn1.Flush()).To(Succeed())
 
 		// expect "OK" on SET
-		str, err := cn1.ReadInlineString()
-		Expect(err).NotTo(HaveOccurred())
-		Expect(str).To(Equal("OK"))
+		Expect(cn1.ReadInlineString()).To(Equal("OK"))
 
 		// expect "v1" on GET
-		str, err = readKey(cn1, "key")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(str).To(Equal("v1"))
+		Expect(readKey(cn1, "key")).To(Equal("v1"))
 
 		// read the key on follower, expect nil
-		str, err = readKey(cn2, "key")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(str).To(Equal("<nil>"))
+		Expect(readKey(cn2, "key")).To(Equal("<nil>"))
 
 		// wait for propagation, expect follower to return "v1"
-		Eventually(func() string {
-			s, err := readKey(cn2, "key")
-			Expect(err).NotTo(HaveOccurred())
-			return s
+		Eventually(func() (string, error) {
+			return readKey(cn2, "key")
 		}, "10s").Should(Equal("v1"))
 	})
 
@@ -255,8 +227,61 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-
 	if testScenario != nil {
 		Expect(testScenario.Close()).To(Succeed())
 	}
 })
+
+func readResponseSlice(n int, cn client.Conn) ([][]string, error) {
+	vvv := make([][]string, n)
+	for i := 0; i < n; i++ {
+		sz, err := cn.ReadArrayLen()
+		if err != nil {
+			return nil, err
+		}
+
+		vv := make([]string, sz)
+		for j := 0; j < int(sz); j++ {
+			if vv[j], err = cn.ReadBulkString(); err != nil {
+				return nil, err
+			}
+		}
+		vvv[i] = vv
+	}
+	return vvv, nil
+}
+
+func readResponse(cn client.Conn) (interface{}, error) {
+	typ, err := cn.PeekType()
+	if err != nil {
+		return nil, err
+	}
+
+	switch typ {
+	case resp.TypeBulk:
+		return cn.ReadBulkString()
+	case resp.TypeInline:
+		return cn.ReadInlineString()
+	case resp.TypeInt:
+		return cn.ReadInt()
+	case resp.TypeError:
+		return cn.ReadError()
+	case resp.TypeArray:
+		sz, err := cn.ReadArrayLen()
+		if err != nil {
+			return nil, err
+		}
+
+		vv := make([]string, sz)
+		for i := 0; i < int(sz); i++ {
+			if vv[i], err = cn.ReadBulkString(); err != nil {
+				return nil, err
+			}
+		}
+		return vv, nil
+	case resp.TypeNil:
+		return "<nil>", cn.ReadNil()
+	default:
+		return nil, fmt.Errorf("unexpected response %v", typ)
+	}
+}

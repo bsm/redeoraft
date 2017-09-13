@@ -139,11 +139,19 @@ type peer struct {
 	pool  *client.Pool
 	trans *redeoraft.Transport
 
+	port     string
+	serverID raft.ServerID
+
 	data   map[string][]byte
 	dataMu sync.RWMutex
 }
 
 func newPeer(serverID raft.ServerID, addr raft.ServerAddress, dir string, servers []raft.Server) (*peer, error) {
+	_, port, err := net.SplitHostPort(string(addr))
+	if err != nil {
+		return nil, err
+	}
+
 	pool, err := client.New(&pool.Options{InitialSize: 1}, func() (net.Conn, error) {
 		return net.Dial("tcp", string(addr))
 	})
@@ -156,10 +164,12 @@ func newPeer(serverID raft.ServerID, addr raft.ServerAddress, dir string, server
 		Timeout: time.Second,
 	})
 	p := &peer{
-		Server: server,
-		pool:   pool,
-		trans:  trans,
-		data:   make(map[string][]byte),
+		Server:   server,
+		pool:     pool,
+		trans:    trans,
+		port:     port,
+		serverID: serverID,
+		data:     make(map[string][]byte),
 	}
 
 	store := raft.NewInmemStore()
@@ -195,10 +205,13 @@ func newPeer(serverID raft.ServerID, addr raft.ServerAddress, dir string, server
 	p.Server.Handle("raftstats", redeoraft.Stats(ctrl))
 	p.Server.Handle("raftstate", redeoraft.State(ctrl))
 	p.Server.Handle("raftpeers", redeoraft.Peers(ctrl))
+	p.Server.Handle("sentinel", redeoraft.Sentinel("", ctrl))
 
 	return p, nil
 }
 
+func (p *peer) ID() string            { return string(p.serverID) }
+func (p *peer) Port() string          { return p.port }
 func (p *peer) State() raft.RaftState { return p.ctrl.State() }
 
 func (p *peer) Close() (err error) {

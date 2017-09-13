@@ -1,6 +1,7 @@
 package redeoraft
 
 import (
+	"net"
 	"sort"
 	"strings"
 
@@ -67,9 +68,16 @@ func Peers(r *raft.Raft) redeo.Handler {
 		config := future.Configuration()
 		w.AppendArrayLen(len(config.Servers))
 		for _, srv := range config.Servers {
-			w.AppendArrayLen(3)
+			ip, port, _ := net.SplitHostPort(string(srv.Address))
+
+			w.AppendArrayLen(8)
+			w.AppendBulkString("id")
 			w.AppendBulkString(string(srv.ID))
-			w.AppendBulkString(string(srv.Address))
+			w.AppendBulkString("host")
+			w.AppendBulkString(ip)
+			w.AppendBulkString("port")
+			w.AppendBulkString(port)
+			w.AppendBulkString("suffrage")
 			w.AppendBulkString(strings.ToLower(srv.Suffrage.String()))
 		}
 	})
