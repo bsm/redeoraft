@@ -8,15 +8,15 @@
   revision = "0a12dc6f6b9da6da644031a1b9b5a85478c5ee27"
 
 [[projects]]
-  branch = "master"
   name = "github.com/bsm/pool"
   packages = ["."]
-  revision = "502d32d2bce05a40e6405b00207b8ec16ae931f7"
+  revision = "aef6431197b549db4cc9cbbdc06d9c3dde2996bd"
+  version = "v0.8.0"
 
 [[projects]]
   name = "github.com/bsm/redeo"
   packages = [".","client","info","resp"]
-  revision = "adf05883f26039c0774f58a61dc5fe387bcad63a"
+  revision = "a364de74ce02a7c9e37ff739f81815a3ad873b3b"
   version = "v2.0.1"
 
 [[projects]]
