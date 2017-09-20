@@ -85,25 +85,7 @@ var _ = Describe("RedeoRaft", func() {
 
 		cn.WriteCmd("RAFTSTATS")
 		Expect(cn.Flush()).To(Succeed())
-		Expect(readResponse(cn)).To(Equal([]string{
-			"applied_index", "2",
-			"commit_index", "2",
-			"fsm_pending", "0",
-			"last_contact", "0",
-			"last_log_index", "2",
-			"last_log_term", "2",
-			"last_snapshot_index", "0",
-			"last_snapshot_term", "0",
-			"latest_configuration_index", "1",
-			"num_peers", "4",
-			"protocol_version", "3",
-			"protocol_version_max", "3",
-			"protocol_version_min", "0",
-			"snapshot_version_max", "1",
-			"snapshot_version_min", "0",
-			"state", "leader",
-			"term", "2",
-		}))
+		Expect(readResponse(cn)).To(HaveLen(34))
 	})
 
 	It("should query RAFT peers", func() {
