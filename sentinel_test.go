@@ -13,7 +13,7 @@ var _ = Describe("Sentinel", func() {
 
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmdString("SENTINEL")
 		Expect(cn.Flush()).To(Succeed())
@@ -30,7 +30,7 @@ var _ = Describe("Sentinel", func() {
 
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmdString("SENTINEL", "GET-MASTER-ADDR-BY-NAME")
 		Expect(cn.Flush()).To(Succeed())
@@ -50,7 +50,7 @@ var _ = Describe("Sentinel", func() {
 
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmdString("SENTINEL", "sentinels")
 		Expect(cn.Flush()).To(Succeed())
@@ -82,7 +82,7 @@ var _ = Describe("Sentinel", func() {
 
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmdString("SENTINEL", "MASTER")
 		Expect(cn.Flush()).To(Succeed())
@@ -112,7 +112,7 @@ var _ = Describe("Sentinel", func() {
 
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmdString("SENTINEL", "SLAVES")
 		Expect(cn.Flush()).To(Succeed())

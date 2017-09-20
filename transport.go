@@ -118,7 +118,7 @@ func (t *Transport) Consumer() <-chan raft.RPC { return t.consume }
 func (t *Transport) LocalAddr() raft.ServerAddress { return t.addr }
 
 // EncodePeer implements the raft.Transport interface.
-func (t *Transport) EncodePeer(peer raft.ServerAddress) []byte { return []byte(peer) }
+func (t *Transport) EncodePeer(_ raft.ServerID, peer raft.ServerAddress) []byte { return []byte(peer) }
 
 // DecodePeer implements the raft.Transport interface.
 func (t *Transport) DecodePeer(peer []byte) raft.ServerAddress { return raft.ServerAddress(peer) }
@@ -132,10 +132,7 @@ func (t *Transport) SetHeartbeatHandler(fn func(rpc raft.RPC)) {
 
 // AppendEntriesPipeline returns an interface that can be used to pipeline
 // AppendEntries requests.
-func (t *Transport) AppendEntriesPipeline(target raft.ServerAddress) (raft.AppendPipeline, error) {
-	// if 1 == 1 {
-	// 	return nil, raft.ErrPipelineReplicationNotSupported
-	// }
+func (t *Transport) AppendEntriesPipeline(_ raft.ServerID, target raft.ServerAddress) (raft.AppendPipeline, error) {
 	if t.isClosed() {
 		return nil, raft.ErrTransportShutdown
 	}
@@ -143,17 +140,17 @@ func (t *Transport) AppendEntriesPipeline(target raft.ServerAddress) (raft.Appen
 }
 
 // AppendEntries implements the Transport interface.
-func (t *Transport) AppendEntries(target raft.ServerAddress, req *raft.AppendEntriesRequest, res *raft.AppendEntriesResponse) error {
+func (t *Transport) AppendEntries(_ raft.ServerID, target raft.ServerAddress, req *raft.AppendEntriesRequest, res *raft.AppendEntriesResponse) error {
 	return t.callRPC(target, t.opt.AppendEntriesCommand, req, res)
 }
 
 // RequestVote implements the Transport interface.
-func (t *Transport) RequestVote(target raft.ServerAddress, req *raft.RequestVoteRequest, res *raft.RequestVoteResponse) error {
+func (t *Transport) RequestVote(_ raft.ServerID, target raft.ServerAddress, req *raft.RequestVoteRequest, res *raft.RequestVoteResponse) error {
 	return t.callRPC(target, t.opt.RequestVoteCommand, req, res)
 }
 
 // InstallSnapshot implements the Transport interface.
-func (t *Transport) InstallSnapshot(target raft.ServerAddress, req *raft.InstallSnapshotRequest, res *raft.InstallSnapshotResponse, snap io.Reader) error {
+func (t *Transport) InstallSnapshot(_ raft.ServerID, target raft.ServerAddress, req *raft.InstallSnapshotRequest, res *raft.InstallSnapshotResponse, snap io.Reader) error {
 	return t.withConn(target, func(cn client.Conn) error {
 		if err := t.writeRPCStream(cn, t.opt.InstallSnapshotCommand, req, snap, req.Size); err != nil {
 			return err

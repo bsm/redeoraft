@@ -37,7 +37,7 @@ var _ = Describe("RedeoRaft", func() {
 
 		cn, err := p.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer p.pool.Put(cn)
+		defer cn.Close()
 
 		Eventually(func() (string, error) {
 			return readKey(cn, "key")
@@ -48,7 +48,7 @@ var _ = Describe("RedeoRaft", func() {
 		peer, _ := testScenario.Leader()
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmd("PING")
 		Expect(cn.Flush()).To(Succeed())
@@ -59,7 +59,7 @@ var _ = Describe("RedeoRaft", func() {
 		peer, addr := testScenario.Leader()
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmd("RAFTLEADER")
 		Expect(cn.Flush()).To(Succeed())
@@ -70,7 +70,7 @@ var _ = Describe("RedeoRaft", func() {
 		peer, _ := testScenario.Leader()
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmd("RAFTSTATE")
 		Expect(cn.Flush()).To(Succeed())
@@ -81,7 +81,7 @@ var _ = Describe("RedeoRaft", func() {
 		peer, _ := testScenario.Leader()
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmd("RAFTSTATS")
 		Expect(cn.Flush()).To(Succeed())
@@ -92,7 +92,7 @@ var _ = Describe("RedeoRaft", func() {
 		peer, _ := testScenario.Leader()
 		cn, err := peer.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer peer.pool.Put(cn)
+		defer cn.Close()
 
 		cn.WriteCmd("RAFTPEERS")
 		Expect(cn.Flush()).To(Succeed())
@@ -119,11 +119,11 @@ var _ = Describe("RedeoRaft", func() {
 
 		cn1, err := leader.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer leader.pool.Put(cn1)
+		defer cn1.Close()
 
 		cn2, err := follower.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer follower.pool.Put(cn2)
+		defer cn2.Close()
 
 		// write and read the same key on leader
 		cn1.WriteCmdString("SET", "key", "v1")
@@ -151,7 +151,7 @@ var _ = Describe("RedeoRaft", func() {
 
 		lcn, err := leader.pool.Get()
 		Expect(err).NotTo(HaveOccurred())
-		defer leader.pool.Put(lcn)
+		defer lcn.Close()
 
 		for i := 0; i < 500; i++ {
 			lcn.WriteCmdString("SET", "key", fmt.Sprintf("v%03d", i))
