@@ -210,7 +210,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	if testScenario != nil {
-		Expect(testScenario.Close()).To(Succeed())
+		testScenario.Shutdown()
 	}
 })
 

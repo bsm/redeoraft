@@ -16,8 +16,8 @@
 [[projects]]
   name = "github.com/bsm/redeo"
   packages = [".","client","info","resp"]
-  revision = "a364de74ce02a7c9e37ff739f81815a3ad873b3b"
-  version = "v2.0.1"
+  revision = "336e2fc60b58e362653c3b68128e03f629c12ba1"
+  version = "v2.0.2"
 
 [[projects]]
   branch = "master"
@@ -59,13 +59,13 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["html","html/atom","html/charset"]
-  revision = "8351a756f30f1297fe94bbf4b767ec589c6ea6d0"
+  revision = "0a9397675ba34b2845f758fe3cd68828369c6517"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "b6e1ae21643682ce023deb8d152024597b0e9bb4"
+  revision = "314a259e304ff91bd6985da2a7149bbf91237993"
 
 [[projects]]
   branch = "master"

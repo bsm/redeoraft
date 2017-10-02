@@ -19,19 +19,29 @@ import (
 //     MASTER - returns (abbreviated) master attributes
 //     SLAVES - returns (abbreviated) slave attributes
 //     GET-MASTER-ADDR-BY-NAME - returns a the master address
-func Sentinel(name string, r *raft.Raft) redeo.Handler {
+func Sentinel(name string, r *raft.Raft, b *redeo.PubSubBroker) redeo.Handler {
 	if name == "" {
 		name = "mymaster"
 	} else {
 		name = strings.ToLower(name)
 	}
 
-	return sentinelHandler{Name: name, Raft: r}
+	go func() {
+		prevIP, prevPort, _ := net.SplitHostPort(string(r.Leader()))
+
+		for range r.LeaderCh() {
+			currIP, currPort, _ := net.SplitHostPort(string(r.Leader()))
+			b.PublishMessage("+switch-master", strings.Join([]string{name, prevIP, prevPort, currIP, currPort}, " "))
+			prevIP, prevPort = currIP, currPort
+		}
+	}()
+
+	return sentinelHandler{Raft: r, Name: name}
 }
 
 type sentinelHandler struct {
-	Name string
 	*raft.Raft
+	Name string
 }
 
 func (h sentinelHandler) ServeRedeo(w resp.ResponseWriter, c *resp.Command) {

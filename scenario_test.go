@@ -25,23 +25,17 @@ var testScenario *scenario
 // --------------------------------------------------------------------
 
 type scenario struct {
-	root      string
 	listeners []net.Listener
 	peers     []*peer
 }
 
 func createScenario(n int) (*scenario, error) {
-	root, err := ioutil.TempDir("", "redeoraft-test-scenario")
-	if err != nil {
-		return nil, err
-	}
-
-	s := &scenario{root: root}
+	s := new(scenario)
 
 	for i := 0; i < n; i++ {
 		lis, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-			_ = s.Close()
+			s.Shutdown()
 			return nil, err
 		}
 		s.listeners = append(s.listeners, lis)
@@ -49,16 +43,9 @@ func createScenario(n int) (*scenario, error) {
 
 	servers := s.Servers()
 	for i := 0; i < n; i++ {
-		dir := fmt.Sprintf("%s/%02d", root, i)
-		err := os.Mkdir(dir, 0775)
+		peer, err := newPeer(servers[i].ID, servers[i].Address, servers)
 		if err != nil {
-			_ = s.Close()
-			return nil, err
-		}
-
-		peer, err := newPeer(servers[i].ID, servers[i].Address, dir, servers)
-		if err != nil {
-			_ = s.Close()
+			s.Shutdown()
 			return nil, err
 		}
 		s.peers = append(s.peers, peer)
@@ -116,7 +103,7 @@ func (s *scenario) Run() {
 	wg.Wait()
 }
 
-func (s *scenario) Close() error {
+func (s *scenario) Shutdown() {
 	for _, sv := range s.peers {
 		_ = sv.Close()
 	}
@@ -126,8 +113,6 @@ func (s *scenario) Close() error {
 		_ = lis.Close()
 	}
 	s.listeners = s.listeners[:0]
-
-	return os.RemoveAll(s.root)
 }
 
 // --------------------------------------------------------------------
@@ -146,7 +131,7 @@ type peer struct {
 	dataMu sync.RWMutex
 }
 
-func newPeer(serverID raft.ServerID, addr raft.ServerAddress, dir string, servers []raft.Server) (*peer, error) {
+func newPeer(serverID raft.ServerID, addr raft.ServerAddress, servers []raft.Server) (*peer, error) {
 	_, port, err := net.SplitHostPort(string(addr))
 	if err != nil {
 		return nil, err
@@ -173,19 +158,14 @@ func newPeer(serverID raft.ServerID, addr raft.ServerAddress, dir string, server
 	}
 
 	store := raft.NewInmemStore()
+	snaps := raft.NewInmemSnapshotStore()
+
 	conf := raft.DefaultConfig()
 	conf.LocalID = serverID
 	conf.Logger = log.New(ioutil.Discard, "", 0)
 	if testing.Verbose() {
 		conf.Logger = log.New(os.Stderr, "["+string(serverID)+"] ", log.Ltime)
 	}
-
-	snaps, err := raft.NewFileSnapshotStoreWithLogger(dir, 2, conf.Logger)
-	if err != nil {
-		_ = p.Close()
-		return nil, err
-	}
-
 	ctrl, err := raft.NewRaft(conf, p, store, store, snaps, p.trans)
 	if err != nil {
 		_ = p.Close()
@@ -205,7 +185,11 @@ func newPeer(serverID raft.ServerID, addr raft.ServerAddress, dir string, server
 	p.Server.Handle("raftstats", redeoraft.Stats(ctrl))
 	p.Server.Handle("raftstate", redeoraft.State(ctrl))
 	p.Server.Handle("raftpeers", redeoraft.Peers(ctrl))
-	p.Server.Handle("sentinel", redeoraft.Sentinel("", ctrl))
+
+	broker := redeo.NewPubSubBroker()
+	p.Server.Handle("sentinel", redeoraft.Sentinel("", ctrl, broker))
+	p.Server.Handle("publish", broker.Publish())
+	p.Server.Handle("subscribe", broker.Subscribe())
 
 	return p, nil
 }
