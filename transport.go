@@ -427,8 +427,9 @@ func (t *Transport) fetchPool(target raft.ServerAddress) (*client.Pool, error) {
 	if t.isClosed() {
 		return nil, raft.ErrTransportShutdown
 	}
+	saddr := string(target)
 	c, err := client.New(nil, func() (net.Conn, error) {
-		return net.DialTimeout("tcp", string(target), t.opt.Timeout)
+		return net.DialTimeout("tcp", saddr, t.opt.Timeout)
 	})
 	if err != nil {
 		return nil, err

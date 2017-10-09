@@ -56,6 +56,54 @@ func Snapshot(r *raft.Raft) redeo.Handler {
 	})
 }
 
+// AddPeers handlers adds peers to the cluster
+func AddPeers(r *raft.Raft) redeo.Handler {
+	return redeo.HandlerFunc(func(w resp.ResponseWriter, c *resp.Command) {
+		if c.ArgN() == 0 {
+			w.AppendError(redeo.WrongNumberOfArgs(c.Name))
+			return
+		}
+
+		var err error
+		for _, peer := range c.Args() {
+			if e := r.AddPeer(raft.ServerAddress(peer)).Error(); e != nil {
+				err = e
+			}
+		}
+
+		if err != nil {
+			w.AppendError("ERR " + err.Error())
+			return
+		}
+
+		w.AppendOK()
+	})
+}
+
+// RemovePeers handlers removes peers from the cluster
+func RemovePeers(r *raft.Raft) redeo.Handler {
+	return redeo.HandlerFunc(func(w resp.ResponseWriter, c *resp.Command) {
+		if c.ArgN() == 0 {
+			w.AppendError(redeo.WrongNumberOfArgs(c.Name))
+			return
+		}
+
+		var err error
+		for _, peer := range c.Args() {
+			if e := r.RemovePeer(raft.ServerAddress(peer)).Error(); e != nil {
+				err = e
+			}
+		}
+
+		if err != nil {
+			w.AppendError("ERR " + err.Error())
+			return
+		}
+
+		w.AppendOK()
+	})
+}
+
 // Peers handlers retrieve a list of peers
 func Peers(r *raft.Raft) redeo.Handler {
 	return redeo.HandlerFunc(func(w resp.ResponseWriter, c *resp.Command) {
