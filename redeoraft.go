@@ -1,6 +1,7 @@
 package redeoraft
 
 import (
+	"bytes"
 	"net"
 	"sort"
 	"strings"
@@ -56,22 +57,26 @@ func Snapshot(r *raft.Raft) redeo.Handler {
 	})
 }
 
-// AddPeers handlers adds peers to the cluster
-func AddPeers(r *raft.Raft) redeo.Handler {
+var nonVoterModifier = []byte("nonvoter")
+
+// AddPeer handler add a voting member to the cluster
+func AddPeer(r *raft.Raft) redeo.Handler {
 	return redeo.HandlerFunc(func(w resp.ResponseWriter, c *resp.Command) {
-		if c.ArgN() == 0 {
+		if c.ArgN() < 2 {
 			w.AppendError(redeo.WrongNumberOfArgs(c.Name))
 			return
 		}
 
-		var err error
-		for _, peer := range c.Args() {
-			if e := r.AddPeer(raft.ServerAddress(peer)).Error(); e != nil {
-				err = e
-			}
-		}
+		serverID := raft.ServerID(c.Arg(0))
+		address := raft.ServerAddress(c.Arg(1))
 
-		if err != nil {
+		var future raft.IndexFuture
+		if c.ArgN() == 3 && bytes.Equal(bytes.ToLower(c.Arg(0)), nonVoterModifier) {
+			future = r.AddNonvoter(serverID, address, 0, 0)
+		} else {
+			future = r.AddVoter(serverID, address, 0, 0)
+		}
+		if err := future.Error(); err != nil {
 			w.AppendError("ERR " + err.Error())
 			return
 		}
@@ -80,22 +85,18 @@ func AddPeers(r *raft.Raft) redeo.Handler {
 	})
 }
 
-// RemovePeers handlers removes peers from the cluster
-func RemovePeers(r *raft.Raft) redeo.Handler {
+// RemovePeer removes a member from the cluster
+func RemovePeer(r *raft.Raft) redeo.Handler {
 	return redeo.HandlerFunc(func(w resp.ResponseWriter, c *resp.Command) {
-		if c.ArgN() == 0 {
+		if c.ArgN() != 1 {
 			w.AppendError(redeo.WrongNumberOfArgs(c.Name))
 			return
 		}
 
-		var err error
-		for _, peer := range c.Args() {
-			if e := r.RemovePeer(raft.ServerAddress(peer)).Error(); e != nil {
-				err = e
-			}
-		}
+		serverID := raft.ServerID(c.Arg(0))
+		future := r.RemoveServer(serverID, 0, 0)
 
-		if err != nil {
+		if err := future.Error(); err != nil {
 			w.AppendError("ERR " + err.Error())
 			return
 		}
@@ -104,7 +105,7 @@ func RemovePeers(r *raft.Raft) redeo.Handler {
 	})
 }
 
-// Peers handlers retrieve a list of peers
+// Peers handler retrieves a list of peers
 func Peers(r *raft.Raft) redeo.Handler {
 	return redeo.HandlerFunc(func(w resp.ResponseWriter, c *resp.Command) {
 		future := r.GetConfiguration()
