@@ -101,6 +101,10 @@ func (h sentinelHandler) peersOrError(w resp.ResponseWriter) []raft.Server {
 
 func (h sentinelHandler) masterAddr(w resp.ResponseWriter) {
 	ip, port, _ := net.SplitHostPort(string(h.Leader()))
+	if ip == "" || port == "" {
+		w.AppendNil()
+		return
+	}
 
 	w.AppendArrayLen(2)
 	w.AppendBulkString(ip)
