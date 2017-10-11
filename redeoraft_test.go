@@ -64,6 +64,9 @@ var _ = Describe("RedeoRaft", func() {
 		cn.WriteCmd("RAFTLEADER")
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal(addr.String()))
+
+		// ensure everything was read
+		Expect(cn.UnreadBytes()).To(BeZero())
 	})
 
 	It("should query RAFT state", func() {
@@ -75,6 +78,9 @@ var _ = Describe("RedeoRaft", func() {
 		cn.WriteCmd("RAFTSTATE")
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal("leader"))
+
+		// ensure everything was read
+		Expect(cn.UnreadBytes()).To(BeZero())
 	})
 
 	It("should query RAFT stats", func() {
@@ -86,6 +92,9 @@ var _ = Describe("RedeoRaft", func() {
 		cn.WriteCmd("RAFTSTATS")
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(HaveLen(34))
+
+		// ensure everything was read
+		Expect(cn.UnreadBytes()).To(BeZero())
 	})
 
 	It("should query RAFT peers", func() {
@@ -108,6 +117,9 @@ var _ = Describe("RedeoRaft", func() {
 			}
 		}
 		Expect(readResponseSlice(5, cn)).To(ConsistOf(exp))
+
+		// ensure everything was read
+		Expect(cn.UnreadBytes()).To(BeZero())
 	})
 
 	It("should accept and propagate writes", func() {
@@ -143,6 +155,10 @@ var _ = Describe("RedeoRaft", func() {
 		Eventually(func() (string, error) {
 			return readKey(cn2, "key")
 		}, "10s").Should(Equal("v1"))
+
+		// ensure everything was read
+		Expect(cn1.UnreadBytes()).To(BeZero())
+		Expect(cn2.UnreadBytes()).To(BeZero())
 	})
 
 	It("should propagate to all followers", func() {

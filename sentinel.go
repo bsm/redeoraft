@@ -50,10 +50,11 @@ func (h sentinelHandler) ServeRedeo(w resp.ResponseWriter, c *resp.Command) {
 		return
 	}
 
-	switch subCmd := c.Arg(0).String(); strings.ToLower(subCmd) {
+	firstArg := c.Arg(0).String()
+	switch subCmd := strings.ToLower(firstArg); subCmd {
 	case "get-master-addr-by-name":
 		if c.ArgN() != 2 {
-			w.AppendError("ERR wrong number of arguments for '" + c.Name + " " + subCmd + "'")
+			w.AppendError("ERR wrong number of arguments for '" + c.Name + " " + firstArg + "'")
 			return
 		}
 		if name := c.Arg(1).String(); strings.ToLower(name) != h.Name {
@@ -63,7 +64,7 @@ func (h sentinelHandler) ServeRedeo(w resp.ResponseWriter, c *resp.Command) {
 		h.masterAddr(w)
 	case "sentinels", "master", "slaves":
 		if c.ArgN() != 2 {
-			w.AppendError("ERR wrong number of arguments for '" + c.Name + " " + subCmd + "'")
+			w.AppendError("ERR wrong number of arguments for '" + c.Name + " " + firstArg + "'")
 			return
 		}
 		if name := c.Arg(1).String(); strings.ToLower(name) != h.Name {
@@ -79,9 +80,8 @@ func (h sentinelHandler) ServeRedeo(w resp.ResponseWriter, c *resp.Command) {
 		case "slaves":
 			h.slaves(w)
 		}
-		h.sentinels(w)
 	default:
-		w.AppendError("ERR Unknown sentinel subcommand '" + subCmd + "'")
+		w.AppendError("ERR Unknown sentinel subcommand '" + firstArg + "'")
 	}
 }
 

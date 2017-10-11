@@ -22,6 +22,9 @@ var _ = Describe("Sentinel", func() {
 		cn.WriteCmdString("SENTINEL", "BOGUS")
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal("ERR Unknown sentinel subcommand 'BOGUS'"))
+
+		// ensure everything was read
+		Expect(cn.UnreadBytes()).To(BeZero())
 	})
 
 	It("should GET-MASTER-ADDR-BY-NAME", func() {
@@ -36,13 +39,16 @@ var _ = Describe("Sentinel", func() {
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal("ERR wrong number of arguments for 'SENTINEL GET-MASTER-ADDR-BY-NAME'"))
 
-		cn.WriteCmdString("SENTINEL", "GET-MASTER-ADDR-BY-NAME", "bogus")
+		cn.WriteCmdString("SENTINEL", "get-master-addr-by-name", "bogus")
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal("<nil>"))
 
-		cn.WriteCmdString("SENTINEL", "GET-MASTER-ADDR-BY-NAME", "MyMaster")
+		cn.WriteCmdString("SENTINEL", "GET-MASTER-addr-BY-NAME", "MyMaster")
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal([]string{"127.0.0.1", leader.Port()}))
+
+		// ensure everything was read
+		Expect(cn.UnreadBytes()).To(BeZero())
 	})
 
 	It("should SENTINELS", func() {
@@ -60,7 +66,7 @@ var _ = Describe("Sentinel", func() {
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal("ERR No such master with that name"))
 
-		cn.WriteCmdString("SENTINEL", "SENTINELS", "myMaster")
+		cn.WriteCmdString("SENTINEL", "SeNTiNeLS", "myMaster")
 		Expect(cn.Flush()).To(Succeed())
 		Expect(cn.ReadArrayLen()).To(Equal(5))
 
@@ -74,6 +80,9 @@ var _ = Describe("Sentinel", func() {
 			}
 		}
 		Expect(readResponseSlice(5, cn)).To(ConsistOf(exp))
+
+		// ensure everything was read
+		Expect(cn.UnreadBytes()).To(BeZero())
 	})
 
 	It("should MASTER", func() {
@@ -92,7 +101,7 @@ var _ = Describe("Sentinel", func() {
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal("ERR No such master with that name"))
 
-		cn.WriteCmdString("SENTINEL", "master", "myMaster")
+		cn.WriteCmdString("SENTINEL", "MASTeR", "myMaster")
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal([]string{
 			"name", "mymaster",
@@ -104,6 +113,9 @@ var _ = Describe("Sentinel", func() {
 			"num-slaves", "4",
 			"num-other-sentinels", "4",
 		}))
+
+		// ensure everything was read
+		Expect(cn.UnreadBytes()).To(BeZero())
 	})
 
 	It("should SLAVES", func() {
@@ -122,7 +134,7 @@ var _ = Describe("Sentinel", func() {
 		Expect(cn.Flush()).To(Succeed())
 		Expect(readResponse(cn)).To(Equal("ERR No such master with that name"))
 
-		cn.WriteCmdString("SENTINEL", "slaves", "myMaster")
+		cn.WriteCmdString("SENTINEL", "SLaVES", "myMaster")
 		Expect(cn.Flush()).To(Succeed())
 		Expect(cn.ReadArrayLen()).To(Equal(4))
 
@@ -143,6 +155,9 @@ var _ = Describe("Sentinel", func() {
 			})
 		}
 		Expect(readResponseSlice(4, cn)).To(ConsistOf(exp))
+
+		// ensure everything was read
+		Expect(cn.UnreadBytes()).To(BeZero())
 	})
 
 })

@@ -16,8 +16,8 @@
 [[projects]]
   name = "github.com/bsm/redeo"
   packages = [".","client","info","resp"]
-  revision = "336e2fc60b58e362653c3b68128e03f629c12ba1"
-  version = "v2.0.2"
+  revision = "968cb609ebaa5d9e749423785d2136cf3fc537ea"
+  version = "v2.0.3"
 
 [[projects]]
   branch = "master"
