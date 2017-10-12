@@ -10,7 +10,7 @@ import (
 )
 
 func ExampleTransport() {
-	// Init server with default options
+	// Init server with default config
 	srv := redeo.NewServer(nil)
 
 	// Init a new transport, this installs three new commands on your
@@ -18,8 +18,8 @@ func ExampleTransport() {
 	// * raftappend - appends replicated log entries from leader
 	// * raftvote - replies to vote requests in an leadership election
 	// * raftsnapshot - installs a snapshot
-	tsp := redeoraft.NewTransport(srv, "10.0.0.1:9736", &redeoraft.Options{
-		Timeout: time.Second,
+	tsp := redeoraft.NewTransport(srv, "10.0.0.1:9736", &redeoraft.Config{
+		Timeout: time.Minute,
 	})
 	defer tsp.Close()
 
@@ -101,8 +101,8 @@ func ExampleState() {
 
 func startRaft(srv *redeo.Server) (*raft.Raft, *redeoraft.Transport, error) {
 	// init transport
-	tsp := redeoraft.NewTransport(srv, "10.0.0.1:9736", &redeoraft.Options{
-		Timeout: time.Second,
+	tsp := redeoraft.NewTransport(srv, "10.0.0.1:9736", &redeoraft.Config{
+		Timeout: time.Minute,
 	})
 
 	// connect raft

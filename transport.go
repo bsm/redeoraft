@@ -31,8 +31,8 @@ var (
 
 var _ raft.Transport = (*Transport)(nil)
 
-// Options allow to customise transports
-type Options struct {
+// Config allows to customise transports
+type Config struct {
 	// AppendEntriesCommand allows to customise the
 	// command name which is used to append entries.
 	// Default: raftappend
@@ -53,22 +53,22 @@ type Options struct {
 	Timeout time.Duration
 }
 
-func (o *Options) norm() {
-	if o.AppendEntriesCommand == "" {
-		o.AppendEntriesCommand = "raftappend"
+func (c *Config) norm() {
+	if c.AppendEntriesCommand == "" {
+		c.AppendEntriesCommand = "raftappend"
 	}
-	if o.RequestVoteCommand == "" {
-		o.RequestVoteCommand = "raftvote"
+	if c.RequestVoteCommand == "" {
+		c.RequestVoteCommand = "raftvote"
 	}
-	if o.InstallSnapshotCommand == "" {
-		o.InstallSnapshotCommand = "raftsnapshot"
+	if c.InstallSnapshotCommand == "" {
+		c.InstallSnapshotCommand = "raftsnapshot"
 	}
 }
 
 // Transport allows redeo instances to communicate cluster messages
 type Transport struct {
 	addr    raft.ServerAddress
-	opt     *Options
+	conf    *Config
 	consume chan raft.RPC
 
 	clients   map[raft.ServerAddress]*client.Pool
@@ -82,29 +82,29 @@ type Transport struct {
 	bufferPool sync.Pool
 }
 
-// NewTransport creates a new transport and installs the required handlers on the server (see Options).
+// NewTransport creates a new transport and installs the required handlers on the server (see Config).
 // It also requires an address it can advertise to peers.
-func NewTransport(s *redeo.Server, advertise raft.ServerAddress, opt *Options) *Transport {
-	if opt == nil {
-		opt = new(Options)
+func NewTransport(s *redeo.Server, advertise raft.ServerAddress, conf *Config) *Transport {
+	if conf == nil {
+		conf = new(Config)
 	}
-	opt.norm()
+	conf.norm()
 
 	t := &Transport{
 		addr:     advertise,
-		opt:      opt,
+		conf:     conf,
 		clients:  make(map[raft.ServerAddress]*client.Pool),
 		consume:  make(chan raft.RPC),
 		shutdown: make(chan struct{}),
 	}
 
-	s.HandleStreamFunc(t.opt.AppendEntriesCommand, func(w resp.ResponseWriter, c *resp.CommandStream) {
+	s.HandleStreamFunc(t.conf.AppendEntriesCommand, func(w resp.ResponseWriter, c *resp.CommandStream) {
 		t.handle(w, c, 1, new(raft.AppendEntriesRequest), typeOfAppendEntriesResponse)
 	})
-	s.HandleStreamFunc(t.opt.RequestVoteCommand, func(w resp.ResponseWriter, c *resp.CommandStream) {
+	s.HandleStreamFunc(t.conf.RequestVoteCommand, func(w resp.ResponseWriter, c *resp.CommandStream) {
 		t.handle(w, c, 1, new(raft.RequestVoteRequest), typeOfRequestVoteResponse)
 	})
-	s.HandleStreamFunc(t.opt.InstallSnapshotCommand, func(w resp.ResponseWriter, c *resp.CommandStream) {
+	s.HandleStreamFunc(t.conf.InstallSnapshotCommand, func(w resp.ResponseWriter, c *resp.CommandStream) {
 		t.handle(w, c, 2, new(raft.InstallSnapshotRequest), typeOfInstallSnapshotResponse)
 	})
 
@@ -141,18 +141,18 @@ func (t *Transport) AppendEntriesPipeline(_ raft.ServerID, target raft.ServerAdd
 
 // AppendEntries implements the Transport interface.
 func (t *Transport) AppendEntries(_ raft.ServerID, target raft.ServerAddress, req *raft.AppendEntriesRequest, res *raft.AppendEntriesResponse) error {
-	return t.callRPC(target, t.opt.AppendEntriesCommand, req, res)
+	return t.callRPC(target, t.conf.AppendEntriesCommand, req, res)
 }
 
 // RequestVote implements the Transport interface.
 func (t *Transport) RequestVote(_ raft.ServerID, target raft.ServerAddress, req *raft.RequestVoteRequest, res *raft.RequestVoteResponse) error {
-	return t.callRPC(target, t.opt.RequestVoteCommand, req, res)
+	return t.callRPC(target, t.conf.RequestVoteCommand, req, res)
 }
 
 // InstallSnapshot implements the Transport interface.
 func (t *Transport) InstallSnapshot(_ raft.ServerID, target raft.ServerAddress, req *raft.InstallSnapshotRequest, res *raft.InstallSnapshotResponse, snap io.Reader) error {
 	return t.withConn(target, func(cn client.Conn) error {
-		if err := t.writeRPCStream(cn, t.opt.InstallSnapshotCommand, req, snap, req.Size); err != nil {
+		if err := t.writeRPCStream(cn, t.conf.InstallSnapshotCommand, req, snap, req.Size); err != nil {
 			return err
 		}
 		return t.readRPC(cn, res)
@@ -233,7 +233,7 @@ func (t *Transport) writeRPC(cn client.Conn, cmd string, req interface{}) error 
 
 func (t *Transport) flushRPC(cn client.Conn) error {
 	// set timeout
-	if timeout := t.opt.Timeout; timeout > 0 {
+	if timeout := t.conf.Timeout; timeout > 0 {
 		_ = cn.SetWriteDeadline(time.Now().Add(timeout))
 	}
 
@@ -255,7 +255,7 @@ func (t *Transport) writeRPCStream(cn client.Conn, cmd string, req interface{}, 
 	}
 
 	// set a deadline, scaled by request size
-	if timeout := t.opt.Timeout; timeout > 0 {
+	if timeout := t.conf.Timeout; timeout > 0 {
 		if scale := time.Duration(size / int64(raft.DefaultTimeoutScale)); scale > 1 {
 			timeout = timeout * scale
 		}
@@ -285,7 +285,7 @@ func (t *Transport) writeRPCStream(cn client.Conn, cmd string, req interface{}, 
 }
 func (t *Transport) readRPC(cn client.Conn, res interface{}) error {
 	// set timeout
-	if timeout := t.opt.Timeout; timeout > 0 {
+	if timeout := t.conf.Timeout; timeout > 0 {
 		_ = cn.SetReadDeadline(time.Now().Add(timeout))
 	}
 
@@ -429,7 +429,7 @@ func (t *Transport) fetchPool(target raft.ServerAddress) (*client.Pool, error) {
 	}
 	saddr := string(target)
 	c, err := client.New(nil, func() (net.Conn, error) {
-		return net.DialTimeout("tcp", saddr, t.opt.Timeout)
+		return net.DialTimeout("tcp", saddr, t.conf.Timeout)
 	})
 	if err != nil {
 		return nil, err

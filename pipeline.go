@@ -42,7 +42,7 @@ func newPipeline(trans *Transport, target raft.ServerAddress) (*pipeline, error)
 }
 
 func (p *pipeline) write(req *raft.AppendEntriesRequest) error {
-	return p.trans.writeRPC(p.cn, p.trans.opt.AppendEntriesCommand, req)
+	return p.trans.writeRPC(p.cn, p.trans.conf.AppendEntriesCommand, req)
 }
 
 func (p *pipeline) recv(res *raft.AppendEntriesResponse) error {

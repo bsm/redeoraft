@@ -10,7 +10,7 @@ Raft transport implementation for Redeo servers.
 ## Example
 
 ```go
-func run() {{ "ExampleNewTransport" | code }}
+func run() {{ "ExampleTransport" | code }}
 ```
 
 ## Dependencies

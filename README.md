@@ -11,7 +11,7 @@ Raft transport implementation for Redeo servers.
 
 ```go
 func run() {
-	// Init server with default options
+	// Init server with default config
 	srv := redeo.NewServer(nil)
 
 	// Init a new transport, this installs three new commands on your
@@ -19,13 +19,17 @@ func run() {
 	// * raftappend - appends replicated log entries from leader
 	// * raftvote - replies to vote requests in an leadership election
 	// * raftsnapshot - installs a snapshot
-	tsp := redeoraft.NewTransport(srv, "10.0.0.1:9736", &redeoraft.Options{
-		Timeout: time.Second,
+	tsp := redeoraft.NewTransport(srv, "10.0.0.1:9736", &redeoraft.Config{
+		Timeout: time.Minute,
 	})
 	defer tsp.Close()
 
 	// Use the transport in your raft configuration
-	// raftsrv, err := raft.NewRaft(..., tsp)
+	rft, err := raft.NewRaft(raft.DefaultConfig(), &ExampleRaftService{}, raft.NewInmemStore(), raft.NewInmemStore(), raft.NewInmemSnapshotStore(), tsp)
+	if err != nil {
+		panic(err)
+	}
+	defer rft.Shutdown()
 }
 ```
 

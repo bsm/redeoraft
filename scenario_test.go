@@ -145,8 +145,8 @@ func newPeer(serverID raft.ServerID, addr raft.ServerAddress, servers []raft.Ser
 	}
 
 	server := redeo.NewServer(nil)
-	trans := redeoraft.NewTransport(server, addr, &redeoraft.Options{
-		Timeout: time.Second,
+	trans := redeoraft.NewTransport(server, addr, &redeoraft.Config{
+		Timeout: 10 * time.Second,
 	})
 	p := &peer{
 		Server:   server,
