@@ -37,12 +37,12 @@ func Sentinel(name string, r *raft.Raft, b *redeo.PubSubBroker) redeo.Handler {
 	}()
 
 	h := &sentinelHandler{Raft: r, Name: name}
-	return redeo.SubCommands(map[string]redeo.Handler{
+	return redeo.SubCommands{
 		"get-master-addr-by-name": redeo.HandlerFunc(h.GetMasterAddrByName),
 		"sentinels":               redeo.HandlerFunc(h.Sentinels),
 		"master":                  redeo.HandlerFunc(h.Master),
 		"slaves":                  redeo.HandlerFunc(h.Slaves),
-	})
+	}
 }
 
 type sentinelHandler struct {
