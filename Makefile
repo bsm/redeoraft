@@ -1,4 +1,4 @@
-PKG=$(shell glide nv)
+PKG=.
 
 default: vet test
 

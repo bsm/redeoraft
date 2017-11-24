@@ -37,7 +37,7 @@ var _ = Describe("Sentinel", func() {
 
 		cn.WriteCmdString("SENTINEL", "GET-MASTER-ADDR-BY-NAME")
 		Expect(cn.Flush()).To(Succeed())
-		Expect(readResponse(cn)).To(Equal("ERR wrong number of arguments for 'SENTINEL GET-MASTER-ADDR-BY-NAME'"))
+		Expect(readResponse(cn)).To(Equal("ERR wrong number of arguments for 'SENTINEL GET-MASTER-ADDR-BY-NAME' command"))
 
 		cn.WriteCmdString("SENTINEL", "get-master-addr-by-name", "bogus")
 		Expect(cn.Flush()).To(Succeed())
@@ -60,7 +60,7 @@ var _ = Describe("Sentinel", func() {
 
 		cn.WriteCmdString("SENTINEL", "sentinels")
 		Expect(cn.Flush()).To(Succeed())
-		Expect(readResponse(cn)).To(Equal("ERR wrong number of arguments for 'SENTINEL sentinels'"))
+		Expect(readResponse(cn)).To(Equal("ERR wrong number of arguments for 'SENTINEL sentinels' command"))
 
 		cn.WriteCmdString("SENTINEL", "SENTINELS", "bogus")
 		Expect(cn.Flush()).To(Succeed())
@@ -95,7 +95,7 @@ var _ = Describe("Sentinel", func() {
 
 		cn.WriteCmdString("SENTINEL", "MASTER")
 		Expect(cn.Flush()).To(Succeed())
-		Expect(readResponse(cn)).To(Equal("ERR wrong number of arguments for 'SENTINEL MASTER'"))
+		Expect(readResponse(cn)).To(Equal("ERR wrong number of arguments for 'SENTINEL MASTER' command"))
 
 		cn.WriteCmdString("SENTINEL", "master", "bogus")
 		Expect(cn.Flush()).To(Succeed())
@@ -128,7 +128,7 @@ var _ = Describe("Sentinel", func() {
 
 		cn.WriteCmdString("SENTINEL", "SLAVES")
 		Expect(cn.Flush()).To(Succeed())
-		Expect(readResponse(cn)).To(Equal("ERR wrong number of arguments for 'SENTINEL SLAVES'"))
+		Expect(readResponse(cn)).To(Equal("ERR wrong number of arguments for 'SENTINEL SLAVES' command"))
 
 		cn.WriteCmdString("SENTINEL", "slaves", "bogus")
 		Expect(cn.Flush()).To(Succeed())

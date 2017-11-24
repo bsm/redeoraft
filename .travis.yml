@@ -5,3 +5,6 @@ install:
 go:
   - 1.9.x
   - 1.8.x
+cache:
+  directories:
+  - vendor

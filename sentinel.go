@@ -36,7 +36,13 @@ func Sentinel(name string, r *raft.Raft, b *redeo.PubSubBroker) redeo.Handler {
 		}
 	}()
 
-	return sentinelHandler{Raft: r, Name: name}
+	h := &sentinelHandler{Raft: r, Name: name}
+	return redeo.SubCommands(map[string]redeo.Handler{
+		"get-master-addr-by-name": redeo.HandlerFunc(h.GetMasterAddrByName),
+		"sentinels":               redeo.HandlerFunc(h.Sentinels),
+		"master":                  redeo.HandlerFunc(h.Master),
+		"slaves":                  redeo.HandlerFunc(h.Slaves),
+	})
 }
 
 type sentinelHandler struct {
@@ -44,62 +50,18 @@ type sentinelHandler struct {
 	Name string
 }
 
-func (h sentinelHandler) ServeRedeo(w resp.ResponseWriter, c *resp.Command) {
-	if c.ArgN() == 0 {
+// GetMasterAddrByName handles get-master-addr-by-name sub-command
+func (h *sentinelHandler) GetMasterAddrByName(w resp.ResponseWriter, c *resp.Command) {
+	if c.ArgN() != 1 {
 		w.AppendError(redeo.WrongNumberOfArgs(c.Name))
 		return
 	}
 
-	firstArg := c.Arg(0).String()
-	switch subCmd := strings.ToLower(firstArg); subCmd {
-	case "get-master-addr-by-name":
-		if c.ArgN() != 2 {
-			w.AppendError("ERR wrong number of arguments for '" + c.Name + " " + firstArg + "'")
-			return
-		}
-		if name := c.Arg(1).String(); strings.ToLower(name) != h.Name {
-			w.AppendNil()
-			return
-		}
-		h.masterAddr(w)
-	case "sentinels", "master", "slaves":
-		if c.ArgN() != 2 {
-			w.AppendError("ERR wrong number of arguments for '" + c.Name + " " + firstArg + "'")
-			return
-		}
-		if name := c.Arg(1).String(); strings.ToLower(name) != h.Name {
-			w.AppendError("ERR No such master with that name")
-			return
-		}
-
-		switch subCmd {
-		case "sentinels":
-			h.sentinels(w)
-		case "master":
-			h.master(w)
-		case "slaves":
-			h.slaves(w)
-		}
-	default:
-		w.AppendError("ERR Unknown sentinel subcommand '" + firstArg + "'")
+	if name := c.Arg(0).String(); strings.ToLower(name) != h.Name {
+		w.AppendNil()
+		return
 	}
-}
 
-func (h sentinelHandler) peersOrError(w resp.ResponseWriter) []raft.Server {
-	future := h.GetConfiguration()
-	if err := future.Error(); err != nil {
-		w.AppendError("ERR " + err.Error())
-		return nil
-	}
-	srv := future.Configuration().Servers
-	if srv == nil {
-		w.AppendError("ERR no sentinels found")
-		return nil
-	}
-	return srv
-}
-
-func (h sentinelHandler) masterAddr(w resp.ResponseWriter) {
 	ip, port, _ := net.SplitHostPort(string(h.Leader()))
 	if ip == "" || port == "" {
 		w.AppendNil()
@@ -111,9 +73,14 @@ func (h sentinelHandler) masterAddr(w resp.ResponseWriter) {
 	w.AppendBulkString(port)
 }
 
-func (h sentinelHandler) sentinels(w resp.ResponseWriter) {
-	peers := h.peersOrError(w)
-	if peers == nil {
+// Sentinels handles sentinels sub-command
+func (h sentinelHandler) Sentinels(w resp.ResponseWriter, c *resp.Command) {
+	if ok := h.validateMasterName(w, c); !ok {
+		return
+	}
+
+	peers, ok := h.validatePeers(w)
+	if !ok {
 		return
 	}
 
@@ -133,9 +100,14 @@ func (h sentinelHandler) sentinels(w resp.ResponseWriter) {
 	}
 }
 
-func (h sentinelHandler) master(w resp.ResponseWriter) {
-	peers := h.peersOrError(w)
-	if peers == nil {
+// Master handles master sub-command
+func (h sentinelHandler) Master(w resp.ResponseWriter, c *resp.Command) {
+	if ok := h.validateMasterName(w, c); !ok {
+		return
+	}
+
+	peers, ok := h.validatePeers(w)
+	if !ok {
 		return
 	}
 
@@ -179,9 +151,14 @@ func (h sentinelHandler) master(w resp.ResponseWriter) {
 	w.AppendBulkString(numSlaves)
 }
 
-func (h sentinelHandler) slaves(w resp.ResponseWriter) {
-	peers := h.peersOrError(w)
-	if peers == nil {
+// Slaves handles slaves sub-command
+func (h sentinelHandler) Slaves(w resp.ResponseWriter, c *resp.Command) {
+	if ok := h.validateMasterName(w, c); !ok {
+		return
+	}
+
+	peers, ok := h.validatePeers(w)
+	if !ok {
 		return
 	}
 
@@ -222,4 +199,30 @@ func (h sentinelHandler) slaves(w resp.ResponseWriter) {
 		w.AppendBulkString(masterPort)
 	}
 
+}
+
+func (h sentinelHandler) validateMasterName(w resp.ResponseWriter, c *resp.Command) bool {
+	if c.ArgN() != 1 {
+		w.AppendError(redeo.WrongNumberOfArgs(c.Name))
+		return false
+	}
+	if name := c.Arg(0).String(); strings.ToLower(name) != h.Name {
+		w.AppendError("ERR No such master with that name")
+		return false
+	}
+	return true
+}
+
+func (h sentinelHandler) validatePeers(w resp.ResponseWriter) ([]raft.Server, bool) {
+	future := h.GetConfiguration()
+	if err := future.Error(); err != nil {
+		w.AppendError("ERR " + err.Error())
+		return nil, false
+	}
+	srv := future.Configuration().Servers
+	if srv == nil {
+		w.AppendError("ERR no sentinels found")
+		return nil, false
+	}
+	return srv, true
 }
