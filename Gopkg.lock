@@ -14,10 +14,10 @@
   version = "v0.8.0"
 
 [[projects]]
+  branch = "feature/v2.2"
   name = "github.com/bsm/redeo"
   packages = [".","client","info","resp"]
-  revision = "eeefcdf0e34637fd61fb3c9a79a36f36efe4cc5b"
-  version = "v2.1.3"
+  revision = "f57acbf6019f38c7941e8a6f668cdd2b54759153"
 
 [[projects]]
   branch = "master"
@@ -59,19 +59,19 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["html","html/atom","html/charset"]
-  revision = "c7086645de248775cbf2373cf5ca4d2fa664b8c1"
+  revision = "a8b9294777976932365dabb6640cf1468d95c70f"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "a13efeb2fd213cf4be7227992aa54519af3b2ac0"
+  revision = "8b4580aae2a0dd0c231a45d3ccb8434ff533b840"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/text"
   packages = ["encoding","encoding/charmap","encoding/htmlindex","encoding/internal","encoding/internal/identifier","encoding/japanese","encoding/korean","encoding/simplifiedchinese","encoding/traditionalchinese","encoding/unicode","internal/gen","internal/tag","internal/utf8internal","language","runes","transform","unicode/cldr"]
-  revision = "88f656faf3f37f690df1a32515b479415e1a6769"
+  revision = "75cc3cad82b5f47d3fb229ddda8c5167da14f294"
 
 [[projects]]
   branch = "v2"
@@ -82,6 +82,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "645910380afa1326db0570e2d8a020f35784facb246f2b090aa97f90b9f1d5bf"
+  inputs-digest = "141d82440b19d3f294b2614422cf43f960b2c74e1c908529722628a7898c1960"
   solver-name = "gps-cdcl"
   solver-version = 1
