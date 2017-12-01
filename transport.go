@@ -319,7 +319,7 @@ func (t *Transport) handle(w resp.ResponseWriter, c *resp.CommandStream, require
 		return
 	}
 
-	src, err := c.NextArg()
+	src, err := c.Next()
 	if err != nil {
 		log.Printf("RAFT Argument Error: %q", err.Error())
 		w.AppendErrorf("RAFT Argument Error: %q", err.Error())
@@ -334,7 +334,7 @@ func (t *Transport) handle(w resp.ResponseWriter, c *resp.CommandStream, require
 
 	var snap io.Reader
 	if requiredArgs == 2 {
-		snap, err = c.NextArg()
+		snap, err = c.Next()
 		if err != nil {
 			log.Printf("RAFT Argument Error: %q", err.Error())
 			w.AppendErrorf("RAFT Argument Error: %q", err.Error())
