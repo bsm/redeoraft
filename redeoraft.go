@@ -3,8 +3,9 @@ package redeoraft
 import (
 	"bytes"
 	"net"
-	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bsm/redeo"
 	"github.com/bsm/redeo/resp"
@@ -22,19 +23,43 @@ func Leader(r *raft.Raft) redeo.Handler {
 func Stats(r *raft.Raft) redeo.Handler {
 	return redeo.HandlerFunc(func(w resp.ResponseWriter, _ *resp.Command) {
 		pairs := r.Stats()
-		delete(pairs, "latest_configuration")
-
-		keys := make([]string, 0, len(pairs))
-		for k := range pairs {
-			keys = append(keys, k)
+		numValue := func(key string) {
+			num, _ := strconv.ParseInt(pairs[key], 10, 64)
+			w.AppendBulkString(key)
+			w.AppendInt(num)
 		}
-		sort.Strings(keys)
 
-		w.AppendArrayLen(len(pairs) * 2)
-		for _, k := range keys {
-			w.AppendBulkString(k)
-			w.AppendBulkString(strings.ToLower(pairs[k]))
+		w.AppendArrayLen(32)
+
+		// state
+		w.AppendBulkString("state")
+		w.AppendBulkString(strings.ToLower(pairs["state"]))
+
+		// numerics
+		numValue("term")
+		numValue("num_peers")
+
+		numValue("last_log_index")
+		numValue("last_log_term")
+		numValue("commit_index")
+		numValue("applied_index")
+		numValue("fsm_pending")
+		numValue("last_snapshot_index")
+		numValue("last_snapshot_term")
+
+		numValue("protocol_version")
+		numValue("protocol_version_min")
+		numValue("protocol_version_max")
+		numValue("snapshot_version_min")
+		numValue("snapshot_version_max")
+
+		// last-contact in µs
+		lastContact, err := time.ParseDuration(pairs["last_contact"])
+		if err != nil {
+			lastContact = -time.Microsecond
 		}
+		w.AppendBulkString("last_contact")
+		w.AppendInt(int64(lastContact / time.Microsecond))
 	})
 }
 

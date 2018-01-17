@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/bsm/redeo/client"
-	"github.com/bsm/redeo/resp"
 	"github.com/hashicorp/raft"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,13 +18,11 @@ var _ = Describe("RedeoRaft", func() {
 			return "", err
 		}
 
-		res, err := readResponse(cn)
-		if err != nil {
+		var v interface{}
+		if err := cn.Scan(&v); err != nil {
 			return "", err
-		} else if str, ok := res.(string); ok {
-			return str, nil
 		}
-		return "", fmt.Errorf("expected bulk or nil")
+		return fmt.Sprintf("%v", v), nil
 	}
 
 	var expectFollowerKV = func(p *peer, key, value string) {
@@ -52,7 +49,7 @@ var _ = Describe("RedeoRaft", func() {
 
 		cn.WriteCmd("PING")
 		Expect(cn.Flush()).To(Succeed())
-		Expect(readResponse(cn)).To(Equal("PONG"))
+		Expect(scanString(cn)).To(Equal("PONG"))
 	})
 
 	It("should query RAFT leader", func() {
@@ -63,7 +60,7 @@ var _ = Describe("RedeoRaft", func() {
 
 		cn.WriteCmd("RAFTLEADER")
 		Expect(cn.Flush()).To(Succeed())
-		Expect(readResponse(cn)).To(Equal(addr.String()))
+		Expect(scanString(cn)).To(Equal(addr.String()))
 
 		// ensure everything was read
 		Expect(cn.UnreadBytes()).To(BeZero())
@@ -77,7 +74,7 @@ var _ = Describe("RedeoRaft", func() {
 
 		cn.WriteCmd("RAFTSTATE")
 		Expect(cn.Flush()).To(Succeed())
-		Expect(readResponse(cn)).To(Equal("leader"))
+		Expect(scanString(cn)).To(Equal("leader"))
 
 		// ensure everything was read
 		Expect(cn.UnreadBytes()).To(BeZero())
@@ -91,7 +88,30 @@ var _ = Describe("RedeoRaft", func() {
 
 		cn.WriteCmd("RAFTSTATS")
 		Expect(cn.Flush()).To(Succeed())
-		Expect(readResponse(cn)).To(HaveLen(34))
+
+		var v []interface{}
+		Expect(cn.Scan(&v)).To(Succeed())
+		Expect(v).To(Equal([]interface{}{
+			"state", "leader",
+			"term", int64(2),
+			"num_peers", int64(4),
+
+			"last_log_index", int64(2),
+			"last_log_term", int64(2),
+			"commit_index", int64(2),
+			"applied_index", int64(2),
+			"fsm_pending", int64(0),
+			"last_snapshot_index", int64(0),
+			"last_snapshot_term", int64(0),
+
+			"protocol_version", int64(3),
+			"protocol_version_min", int64(0),
+			"protocol_version_max", int64(3),
+			"snapshot_version_min", int64(0),
+			"snapshot_version_max", int64(1),
+
+			"last_contact", int64(0),
+		}))
 
 		// ensure everything was read
 		Expect(cn.UnreadBytes()).To(BeZero())
@@ -103,20 +123,19 @@ var _ = Describe("RedeoRaft", func() {
 		Expect(err).NotTo(HaveOccurred())
 		defer cn.Close()
 
-		cn.WriteCmd("RAFTPEERS")
-		Expect(cn.Flush()).To(Succeed())
-		Expect(cn.ReadArrayLen()).To(Equal(5))
-
-		exp := make([][]string, 5)
-		for i, p := range testScenario.peers {
-			exp[i] = []string{
+		var exp, act [][]string
+		for _, p := range testScenario.peers {
+			exp = append(exp, []string{
 				"id", p.ID(),
 				"host", "127.0.0.1",
 				"port", p.Port(),
 				"suffrage", "voter",
-			}
+			})
 		}
-		Expect(readResponseSlice(5, cn)).To(ConsistOf(exp))
+		cn.WriteCmd("RAFTPEERS")
+		Expect(cn.Flush()).To(Succeed())
+		Expect(cn.Scan(&act)).To(Succeed())
+		Expect(act).To(Equal(exp))
 
 		// ensure everything was read
 		Expect(cn.UnreadBytes()).To(BeZero())
@@ -230,56 +249,8 @@ var _ = AfterSuite(func() {
 	}
 })
 
-func readResponseSlice(n int, cn client.Conn) ([][]string, error) {
-	vvv := make([][]string, n)
-	for i := 0; i < n; i++ {
-		sz, err := cn.ReadArrayLen()
-		if err != nil {
-			return nil, err
-		}
-
-		vv := make([]string, sz)
-		for j := 0; j < int(sz); j++ {
-			if vv[j], err = cn.ReadBulkString(); err != nil {
-				return nil, err
-			}
-		}
-		vvv[i] = vv
-	}
-	return vvv, nil
-}
-
-func readResponse(cn client.Conn) (interface{}, error) {
-	typ, err := cn.PeekType()
-	if err != nil {
-		return nil, err
-	}
-
-	switch typ {
-	case resp.TypeBulk:
-		return cn.ReadBulkString()
-	case resp.TypeInline:
-		return cn.ReadInlineString()
-	case resp.TypeInt:
-		return cn.ReadInt()
-	case resp.TypeError:
-		return cn.ReadError()
-	case resp.TypeArray:
-		sz, err := cn.ReadArrayLen()
-		if err != nil {
-			return nil, err
-		}
-
-		vv := make([]string, sz)
-		for i := 0; i < int(sz); i++ {
-			if vv[i], err = cn.ReadBulkString(); err != nil {
-				return nil, err
-			}
-		}
-		return vv, nil
-	case resp.TypeNil:
-		return "<nil>", cn.ReadNil()
-	default:
-		return nil, fmt.Errorf("unexpected response %v", typ)
-	}
+func scanString(cn client.Conn) (string, error) {
+	var s string
+	err := cn.Scan(&s)
+	return s, err
 }
